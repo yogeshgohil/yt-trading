@@ -16,48 +16,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# PWA Meta Tags and Mobile Optimization
-st.markdown("""
-<head>
-    <!-- Mobile Optimization -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#FF4B4B">
-    <meta name="description" content="AI-powered automated trading bot with technical analysis">
-    
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="/app/static/icon.svg">
-    
-    <!-- Manifest -->
-    <link rel="manifest" href="/manifest.json">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/app/static/icon.svg">
-</head>
-
-<script>
-    // Register Service Worker for PWA
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/static/service-worker.js')
-                .then(registration => console.log('✅ PWA Ready - You can install this app!'))
-                .catch(error => console.log('Service Worker registration failed:', error));
-        });
-    }
-    
-    // PWA Install Prompt
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        console.log('💡 You can install this app on your device!');
-    });
-</script>
-""", unsafe_allow_html=True)
 
 # Import our modules
 from data.free_fetcher import FreeFetcher

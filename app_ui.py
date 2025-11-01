@@ -8,13 +8,56 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import sys
 
-# Configure page
+# Configure page with PWA support
 st.set_page_config(
     page_title="Automated Trading App",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# PWA Meta Tags and Mobile Optimization
+st.markdown("""
+<head>
+    <!-- Mobile Optimization -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#FF4B4B">
+    <meta name="description" content="AI-powered automated trading bot with technical analysis">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/app/static/icon.svg">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/app/static/icon.svg">
+</head>
+
+<script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(registration => console.log('✅ PWA Ready - You can install this app!'))
+                .catch(error => console.log('Service Worker registration failed:', error));
+        });
+    }
+    
+    // PWA Install Prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log('💡 You can install this app on your device!');
+    });
+</script>
+""", unsafe_allow_html=True)
 
 # Import our modules
 from data.free_fetcher import FreeFetcher
@@ -29,9 +72,10 @@ if 'fetcher' not in st.session_state:
 if 'db' not in st.session_state:
     st.session_state.db = TradingDatabase("data/trading.db")
 
-# Custom CSS
+# Custom CSS with Mobile Responsiveness
 st.markdown("""
 <style>
+    /* Desktop Styles */
     .big-font {
         font-size:30px !important;
         font-weight: bold;
@@ -53,6 +97,37 @@ st.markdown("""
         padding: 15px;
         border-radius: 5px;
         border-left: 5px solid #17a2b8;
+    }
+    
+    /* Mobile Optimization */
+    @media only screen and (max-width: 768px) {
+        .big-font {
+            font-size: 20px !important;
+        }
+        .metric-card {
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .success-box, .info-box {
+            padding: 10px;
+            font-size: 14px;
+        }
+        /* Make buttons full width on mobile */
+        .stButton button {
+            width: 100%;
+        }
+        /* Adjust column spacing */
+        .row-widget.stHorizontal {
+            flex-direction: column;
+        }
+    }
+    
+    /* Touch-friendly buttons */
+    @media (hover: none) and (pointer: coarse) {
+        .stButton button {
+            min-height: 44px;
+            padding: 12px 24px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)

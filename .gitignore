@@ -64,3 +64,8 @@ htmlcov/
 config/secrets.py
 *.db-journal
 
+# PWA Generated Files (optional - if you generate custom icons)
+static/*.png
+static/*.jpg
+static/screenshot.png
+

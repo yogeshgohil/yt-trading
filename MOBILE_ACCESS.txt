@@ -1,0 +1,59 @@
+================================================
+📱 QUICK GUIDE: ACCESS APP ON YOUR MOBILE
+================================================
+
+STEP 1: Find Your Computer's IP Address
+----------------------------------------
+Open Command Prompt (cmd) and type:
+    ipconfig
+
+Look for "IPv4 Address" - it will look like:
+    192.168.1.100  (or similar)
+
+Write it down! ✍️
+
+
+STEP 2: Restart Streamlit with Network Access
+----------------------------------------------
+Stop the current app (Ctrl+C) and run:
+    streamlit run app_ui.py --server.address 0.0.0.0
+
+
+STEP 3: Open on Your Phone
+---------------------------
+Make sure your phone is on the SAME WiFi as your computer!
+
+Open any browser on your phone and type:
+    http://YOUR_IP_ADDRESS:8501
+
+Example:
+    http://192.168.1.100:8501
+
+
+STEP 4: Install as App (Optional)
+----------------------------------
+Android (Chrome):
+    1. Tap menu (⋮)
+    2. Tap "Add to Home Screen"
+    3. Tap "Add"
+
+iPhone (Safari):
+    1. Tap Share button (□↑)
+    2. Tap "Add to Home Screen"
+    3. Tap "Add"
+
+
+================================================
+🎉 Now you can use the trading app on your mobile!
+================================================
+
+TIPS:
+-----
+✅ Works on same WiFi only (unless you deploy to cloud)
+✅ Rotate phone for better chart viewing
+✅ Use landscape mode for full experience
+✅ Install as PWA for offline access
+
+For CLOUD DEPLOYMENT (access from anywhere):
+Read the PWA_GUIDE.md file for Streamlit Cloud or Render.com deployment.
+

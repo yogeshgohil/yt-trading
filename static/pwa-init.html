@@ -1,0 +1,48 @@
+<!-- PWA Meta Tags and Service Worker Registration -->
+<head>
+    <!-- Mobile Optimization -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#FF4B4B">
+    <meta name="description" content="AI-powered automated trading bot with technical analysis">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/app/static/icon-192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/app/static/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/app/static/icon-512.png">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/app/static/icon-192.png">
+</head>
+
+<script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(registration => {
+                    console.log('ServiceWorker registered:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('ServiceWorker registration failed:', error);
+                });
+        });
+    }
+    
+    // Install prompt for PWA
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Show install button or notification
+        console.log('PWA install prompt available');
+    });
+</script>
+

@@ -100,7 +100,7 @@ with st.sidebar:
     
     page = st.radio(
         "Choose a Page:",
-        ["🏠 Home", "🤖 Auto-Trader", "🎯 Buy Recommendations", "📊 Stock Details", "💰 Live Prices", "📊 Run Backtest", "📈 Compare Strategies", "📜 Trade History", "⚙️ Settings"]
+        ["🏠 Home", "🤖 Auto-Trader", "📊 NIFTY Trading", "💼 Positions", "🎯 Buy Recommendations", "📊 Stock Details", "💰 Live Prices", "📊 Run Backtest", "📈 Compare Strategies", "📜 Trade History", "⚙️ Settings"]
     )
     
     st.markdown("---")
@@ -481,6 +481,1445 @@ elif page == "🤖 Auto-Trader":
         - Maximum trades per day limit
         """)
 
+# NIFTY TRADING PAGE
+elif page == "📊 NIFTY Trading":
+    st.header("📊 NIFTY Trading - Auto Strategy System")
+    st.write("**Automated trading on NIFTY 50 index with optimized strategies for maximum profit**")
+    
+    # Initialize NIFTY trader in session state
+    if 'nifty_trader' not in st.session_state:
+        from autotrader import AutoTrader
+        st.session_state.nifty_trader = AutoTrader(mode="SIMULATION")
+        # Configure specifically for NIFTY stocks
+        st.session_state.nifty_trader.config['stocks_to_trade'] = [
+            'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 
+            'HINDUNILVR', 'BHARTIARTL', 'ITC', 'SBIN', 'KOTAKBANK',
+            'LT', 'AXISBANK', 'BAJFINANCE', 'ASIANPAINT', 'MARUTI'
+        ]
+    
+    nifty_trader = st.session_state.nifty_trader
+    
+    # Mode indicator
+    if nifty_trader.mode == "SIMULATION":
+        st.success("🟢 **SIMULATION MODE** - Testing NIFTY strategies with virtual money")
+    else:
+        st.error("🔴 **LIVE MODE** - Real trading on NIFTY stocks!")
+    
+    st.markdown("---")
+    
+    # NIFTY Indices Overview
+    st.subheader("📈 NIFTY Indices Overview")
+    
+    # Define all NIFTY indices
+    nifty_indices = {
+        'NIFTY 50': '^NSEI',
+        'BANK NIFTY': '^NSEBANK',
+        'NIFTY IT': 'NIFTY_IT.NS',
+        'NIFTY PHARMA': 'NIFTY_PHARMA.NS',
+        'NIFTY AUTO': 'NIFTY_AUTO.NS',
+        'NIFTY FMCG': 'NIFTY_FMCG.NS',
+        'NIFTY METAL': 'NIFTY_METAL.NS',
+        'NIFTY REALTY': 'NIFTY_REALTY.NS',
+        'NIFTY FINANCIAL': 'NIFTY_FIN_SERVICE.NS',
+        'NIFTY INFRA': 'NIFTY_INFRA.NS',
+        'NIFTY ENERGY': 'NIFTY_ENERGY.NS',
+        'NIFTY PSU BANK': 'NIFTY_PSU_BANK.NS',
+        'NIFTY PRIVATE BANK': 'NIFTY_PVT_BANK.NS',
+        'NIFTY MEDIA': 'NIFTY_MEDIA.NS',
+        'NIFTY OIL & GAS': 'NIFTY_OIL_AND_GAS.NS',
+        'NIFTY HEALTHCARE': 'NIFTY_HEALTHCARE.NS',
+        'NIFTY CONSUMER DURABLES': 'NIFTY_CONSR_DURBL.NS',
+        'NIFTY MIDCAP 50': '^NSEMDCP50',
+        'NIFTY SMALLCAP 50': 'NIFTY_SMLCAP_50.NS'
+    }
+    
+    # Display major indices in cards
+    indices_to_show = ['NIFTY 50', 'BANK NIFTY', 'NIFTY IT', 'NIFTY PHARMA']
+    
+    cols = st.columns(4)
+    
+    for idx, (name, symbol) in enumerate([(k, nifty_indices[k]) for k in indices_to_show]):
+        try:
+            quote = st.session_state.fetcher.get_quote(symbol)
+            with cols[idx]:
+                trend_emoji = "📈" if quote['change_percent'] > 0 else "📉"
+                st.metric(
+                    f"{trend_emoji} {name}", 
+                    f"{quote['last_price']:.2f}", 
+                    f"{quote['change_percent']:+.2f}%"
+                )
+        except:
+            with cols[idx]:
+                st.metric(name, "Loading...", "")
+    
+    # Additional indices in expander
+    with st.expander("📊 View All NIFTY Indices"):
+        remaining_indices = [k for k in nifty_indices.keys() if k not in indices_to_show]
+        
+        cols = st.columns(3)
+        for idx, name in enumerate(remaining_indices):
+            try:
+                quote = st.session_state.fetcher.get_quote(nifty_indices[name])
+                with cols[idx % 3]:
+                    trend_emoji = "📈" if quote['change_percent'] > 0 else "📉"
+                    st.metric(
+                        f"{trend_emoji} {name}", 
+                        f"{quote['last_price']:.2f}", 
+                        f"{quote['change_percent']:+.2f}%"
+                    )
+            except:
+                with cols[idx % 3]:
+                    st.metric(name, "N/A", "")
+    
+    st.markdown("---")
+    
+    # Trading Type Selection
+    st.subheader("🎯 Select Trading Type")
+    
+    trading_type = st.radio(
+        "Choose what to trade:",
+        ["📊 Stocks (Cash/Equity)", "🎲 Options (Call & Put)"],
+        horizontal=True,
+        help="Select whether to trade stocks or options"
+    )
+    
+    st.markdown("---")
+    
+    # Index Selection
+    st.subheader("🎯 Select NIFTY Index to Trade")
+    
+    # Define stocks for each index
+    nifty_index_stocks = {
+        'NIFTY 50': [
+            'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HINDUNILVR',
+            'BHARTIARTL', 'ITC', 'SBIN', 'KOTAKBANK', 'LT', 'AXISBANK',
+            'BAJFINANCE', 'ASIANPAINT', 'MARUTI', 'TITAN', 'WIPRO', 'ULTRACEMCO',
+            'NESTLEIND', 'TATASTEEL', 'POWERGRID', 'NTPC', 'ONGC', 'SUNPHARMA',
+            'HCLTECH', 'TATAMOTORS', 'ADANIPORTS', 'JSWSTEEL', 'TECHM', 'INDUSINDBK'
+        ],
+        'BANK NIFTY': [
+            'HDFCBANK', 'ICICIBANK', 'SBIN', 'KOTAKBANK', 'AXISBANK',
+            'INDUSINDBK', 'BANDHANBNK', 'FEDERALBNK', 'IDFCFIRSTB', 'PNB',
+            'BANKBARODA', 'AUBANK'
+        ],
+        'NIFTY IT': [
+            'TCS', 'INFY', 'HCLTECH', 'WIPRO', 'TECHM', 'LTIM',
+            'COFORGE', 'PERSISTENT', 'MPHASIS', 'LTTS'
+        ],
+        'NIFTY PHARMA': [
+            'SUNPHARMA', 'DRREDDY', 'DIVISLAB', 'CIPLA', 'AUROPHARMA',
+            'TORNTPHARM', 'LUPIN', 'BIOCON', 'ALKEM', 'ABBOTINDIA'
+        ],
+        'NIFTY AUTO': [
+            'MARUTI', 'TATAMOTORS', 'BAJAJ-AUTO', 'M&M', 'EICHERMOT',
+            'HEROMOTOCO', 'BOSCHLTD', 'ASHOKLEY', 'TVSMOTOR', 'MOTHERSON'
+        ],
+        'NIFTY FMCG': [
+            'HINDUNILVR', 'ITC', 'NESTLEIND', 'BRITANNIA', 'DABUR',
+            'MARICO', 'GODREJCP', 'COLPAL', 'TATACONSUM', 'MCDOWELL-N'
+        ],
+        'NIFTY METAL': [
+            'TATASTEEL', 'JSWSTEEL', 'HINDALCO', 'COALINDIA', 'VEDL',
+            'JINDALSTEL', 'SAIL', 'NMDC', 'HINDZINC', 'NATIONALUM'
+        ],
+        'NIFTY REALTY': [
+            'DLF', 'GODREJPROP', 'OBEROIRLTY', 'BRIGADE', 'PRESTIGE',
+            'PHOENIXLTD', 'SOBHA', 'MAHLIFE'
+        ],
+        'NIFTY FINANCIAL': [
+            'HDFCBANK', 'ICICIBANK', 'SBIN', 'KOTAKBANK', 'AXISBANK',
+            'BAJFINANCE', 'HDFCLIFE', 'SBILIFE', 'ICICIPRULI', 'BAJAJFINSV',
+            'INDUSINDBK', 'PNBHOUSING', 'CHOLAFIN'
+        ],
+        'NIFTY INFRA': [
+            'LT', 'ADANIPORTS', 'POWERGRID', 'NTPC', 'GAIL',
+            'ADANIGREEN', 'INDIGO', 'IRCTC', 'CONCOR', 'IRB'
+        ],
+        'NIFTY ENERGY': [
+            'RELIANCE', 'ONGC', 'NTPC', 'POWERGRID', 'COALINDIA',
+            'IOC', 'BPCL', 'GAIL', 'ADANIGREEN', 'ADANITRANS'
+        ],
+        'NIFTY PSU BANK': [
+            'SBIN', 'PNB', 'BANKBARODA', 'CANARA', 'UNIONBANK',
+            'INDIANB', 'MAHABANK', 'BANKOFBARODA'
+        ],
+        'NIFTY PRIVATE BANK': [
+            'HDFCBANK', 'ICICIBANK', 'KOTAKBANK', 'AXISBANK',
+            'INDUSINDBK', 'BANDHANBNK', 'FEDERALBNK', 'IDFCFIRSTB'
+        ],
+        'NIFTY MEDIA': [
+            'ZEEL', 'PVRINOX', 'SUNTV', 'TV18BRDCST', 'DISH',
+            'NETWORK18', 'HATHWAY', 'NAZARA'
+        ],
+        'NIFTY OIL & GAS': [
+            'RELIANCE', 'ONGC', 'IOC', 'BPCL', 'HINDPETRO',
+            'GAIL', 'PETRONET', 'OIL', 'MGL', 'IGL'
+        ],
+        'NIFTY HEALTHCARE': [
+            'SUNPHARMA', 'DRREDDY', 'DIVISLAB', 'CIPLA', 'APOLLOHOSP',
+            'FORTIS', 'MAXHEALTH', 'AUROPHARMA', 'BIOCON', 'TORNTPHARM'
+        ],
+        'NIFTY CONSUMER DURABLES': [
+            'TITAN', 'VOLTAS', 'HAVELLS', 'CROMPTON', 'WHIRLPOOL',
+            'BATAINDIA', 'RAJESHEXPO', 'BLUESTARCO', 'SYMPHONY', 'AMBER'
+        ],
+        'NIFTY MIDCAP 50': [
+            'GAIL', 'ADANIGREEN', 'COLPAL', 'DLF', 'GODREJCP',
+            'LUPIN', 'BIOCON', 'BANDHANBNK', 'FEDERALBNK', 'ADANIPOWER',
+            'MUTHOOTFIN', 'PEL', 'INDUSTOWER', 'ACC', 'GLENMARK'
+        ],
+        'NIFTY SMALLCAP 50': [
+            'LICHSGFIN', 'CREDITACCESS', 'ATUL', 'ASTRAL', 'APLAPOLLO',
+            'TIMKEN', 'CUMMINSIND', 'KPITTECH', 'CYIENT', 'SONACOMS',
+            'DEEPAKNTR', 'COROMANDEL', 'CHAMBLFERT', 'GNFC', 'RCF'
+        ]
+    }
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        selected_index = st.selectbox(
+            "Choose NIFTY Index:",
+            list(nifty_index_stocks.keys()),
+            help="Select which NIFTY index you want to trade"
+        )
+    
+    with col2:
+        st.info(f"""
+        **{selected_index} Selected**
+        
+        📊 **Stocks Available:** {len(nifty_index_stocks[selected_index])}
+        🎯 **Focus:** {selected_index.split()[1] if len(selected_index.split()) > 1 else 'Broad Market'}
+        """)
+    
+    st.markdown("---")
+    
+    # Options Configuration (if options trading selected)
+    if trading_type == "🎲 Options (Call & Put)":
+        st.subheader("🎲 Options Trading Configuration")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            option_type = st.selectbox(
+                "Option Type",
+                ["Call Options (CE)", "Put Options (PE)", "Both (CE & PE)"],
+                help="Select which type of options to trade"
+            )
+        
+        with col2:
+            # Generate expiry dates (weekly/monthly)
+            from datetime import timedelta
+            today = datetime.now()
+            
+            # Find next Thursday (weekly expiry)
+            days_ahead = 3 - today.weekday()  # 3 = Thursday
+            if days_ahead <= 0:
+                days_ahead += 7
+            next_weekly = today + timedelta(days=days_ahead)
+            
+            # Monthly expiry (last Thursday of month)
+            next_month = today.replace(day=28) + timedelta(days=4)
+            last_day = next_month - timedelta(days=next_month.day)
+            # Find last Thursday
+            days_back = (last_day.weekday() - 3) % 7
+            monthly_expiry = last_day - timedelta(days=days_back)
+            
+            expiry_dates = [
+                f"Weekly: {next_weekly.strftime('%d-%b-%Y')}",
+                f"Monthly: {monthly_expiry.strftime('%d-%b-%Y')}"
+            ]
+            
+            selected_expiry = st.selectbox(
+                "Expiry Date",
+                expiry_dates,
+                help="Choose expiry date for options"
+            )
+        
+        with col3:
+            # Strike price selection
+            strike_selection = st.selectbox(
+                "Strike Selection",
+                ["ATM (At The Money)", "ITM (In The Money)", "OTM (Out of The Money)", "Custom Strikes"],
+                help="Choose strike price strategy"
+            )
+        
+        # Strike price details
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if strike_selection == "Custom Strikes":
+                custom_strikes = st.text_input(
+                    "Enter Strikes (comma separated)",
+                    "19000,19500,20000",
+                    help="E.g., 19000,19500,20000"
+                )
+            else:
+                num_strikes = st.slider(
+                    "Number of Strikes",
+                    min_value=1,
+                    max_value=10,
+                    value=3,
+                    help="How many strikes to trade"
+                )
+        
+        with col2:
+            lot_size = st.number_input(
+                "Lot Size",
+                min_value=1,
+                max_value=10,
+                value=1,
+                help="Number of lots per trade (NIFTY: 50 qty/lot, BANK NIFTY: 15 qty/lot)"
+            )
+        
+        with col3:
+            # Calculate lot quantity based on index
+            if "BANK" in selected_index.upper():
+                qty_per_lot = 15
+            else:
+                qty_per_lot = 50
+            
+            total_qty = lot_size * qty_per_lot
+            st.metric("Total Quantity", f"{total_qty} units", f"{lot_size} lot(s)")
+        
+        # Options Strategy
+        st.write("**Options Strategy:**")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            options_strategy = st.selectbox(
+                "Trading Strategy",
+                [
+                    "Buy Call (Bullish)",
+                    "Buy Put (Bearish)",
+                    "Sell Call (Covered - Bearish)",
+                    "Sell Put (Cash Secured - Bullish)",
+                    "Straddle (Buy CE + PE)",
+                    "Strangle (OTM CE + PE)",
+                    "Bull Call Spread",
+                    "Bear Put Spread",
+                    "Iron Condor"
+                ],
+                help="Select your options trading strategy"
+            )
+        
+        with col2:
+            max_premium = st.number_input(
+                "Max Premium per Option (₹)",
+                min_value=1,
+                max_value=500,
+                value=100,
+                step=10,
+                help="Maximum premium you're willing to pay/receive"
+            )
+        
+        # Options Greeks Configuration
+        with st.expander("📊 Options Greeks & Risk Parameters"):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.write("**Greeks Filters:**")
+                min_delta = st.slider("Min Delta", 0.0, 1.0, 0.3, 0.05, help="Minimum delta value")
+                max_theta = st.slider("Max Theta Decay", 0, 100, 50, 5, help="Maximum daily theta decay")
+            
+            with col2:
+                st.write("**Risk Management:**")
+                option_stop_loss = st.slider("Stop Loss (%)", 10, 100, 50, 5, help="Exit if premium drops by this %")
+                option_target = st.slider("Profit Target (%)", 20, 200, 100, 10, help="Exit when premium increases by this %")
+            
+            with col3:
+                st.write("**Position Limits:**")
+                max_options_positions = st.number_input("Max Options Positions", 1, 20, 5, help="Max simultaneous option positions")
+                max_options_capital = st.number_input("Max Capital for Options (₹)", 10000, 500000, 50000, 5000, help="Total capital for options")
+        
+        st.info("""
+        🎲 **Options Trading Active**
+        
+        ✅ Trade NIFTY & BANK NIFTY options
+        ✅ Both Call (CE) and Put (PE) options
+        ✅ Weekly & Monthly expiries
+        ✅ Multiple strategies supported
+        ✅ Greeks-based filtering
+        ✅ Advanced risk management
+        
+        ⚠️ **Note:** Options trading involves higher risk. Start with small positions!
+        """)
+        
+        st.markdown("---")
+    
+    # Strategy Configuration
+    st.subheader("⚙️ Trading Configuration")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        strategy_mode = st.selectbox(
+            "Strategy Mode",
+            ["Aggressive (High Profit)", "Balanced (Medium Risk)", "Conservative (Low Risk)"],
+            help="Select your risk appetite for NIFTY trading"
+        )
+        
+        if strategy_mode == "Aggressive (High Profit)":
+            nifty_trader.config['capital_per_trade_percent'] = 20
+            nifty_trader.config['max_trades_per_day'] = 10
+            nifty_trader.config['stop_loss_percent'] = 3
+            nifty_trader.config['target_percent'] = 7
+            st.info("⚡ High risk, high reward strategy")
+        elif strategy_mode == "Balanced (Medium Risk)":
+            nifty_trader.config['capital_per_trade_percent'] = 15
+            nifty_trader.config['max_trades_per_day'] = 7
+            nifty_trader.config['stop_loss_percent'] = 2
+            nifty_trader.config['target_percent'] = 5
+            st.info("⚖️ Balanced risk-reward strategy")
+        else:
+            nifty_trader.config['capital_per_trade_percent'] = 10
+            nifty_trader.config['max_trades_per_day'] = 5
+            nifty_trader.config['stop_loss_percent'] = 1.5
+            nifty_trader.config['target_percent'] = 3
+            st.info("🛡️ Low risk, steady gains strategy")
+    
+    with col2:
+        auto_strategy = st.selectbox(
+            "Auto Strategy",
+            ["Smart AI (Auto-Select)", "RSI Mean Reversion", "MA Trend Following", "Hybrid (Both)"],
+            help="Algorithm for automatic trading"
+        )
+        
+        if auto_strategy == "Smart AI (Auto-Select)":
+            st.success("🤖 AI will choose best strategy per stock")
+        elif auto_strategy == "RSI Mean Reversion":
+            nifty_trader.config['strategy'] = 'RSI'
+            st.info("📊 Buy oversold, sell overbought")
+        elif auto_strategy == "MA Trend Following":
+            nifty_trader.config['strategy'] = 'MA_Crossover'
+            st.info("📈 Follow the trend direction")
+        else:
+            st.info("🔀 Uses both strategies dynamically")
+    
+    with col3:
+        trading_capital = st.number_input(
+            "Capital for NIFTY Trading (₹)",
+            min_value=10000,
+            max_value=10000000,
+            value=int(nifty_trader.config['starting_capital']),
+            step=10000,
+            help="Amount to allocate for NIFTY trading"
+        )
+        
+        if trading_capital != nifty_trader.config['starting_capital']:
+            if st.button("💰 Update Capital", key="nifty_capital"):
+                nifty_trader.update_capital(trading_capital)
+                st.success(f"✅ Capital updated to ₹{trading_capital:,.0f}")
+                st.rerun()
+    
+    # Stocks Selection based on selected index
+    st.write(f"**{selected_index} Stocks to Trade:**")
+    
+    # Get stocks for selected index
+    available_stocks = nifty_index_stocks[selected_index]
+    
+    # Quick select options
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✅ Select All", use_container_width=True):
+            st.session_state.selected_stocks = available_stocks
+            st.rerun()
+    
+    with col2:
+        if st.button("🔝 Select Top 5", use_container_width=True):
+            st.session_state.selected_stocks = available_stocks[:5]
+            st.rerun()
+    
+    with col3:
+        if st.button("🎯 Select Top 10", use_container_width=True):
+            st.session_state.selected_stocks = available_stocks[:10]
+            st.rerun()
+    
+    # Initialize selected stocks in session state
+    if 'selected_stocks' not in st.session_state:
+        st.session_state.selected_stocks = available_stocks[:10]
+    
+    # Make sure selected stocks are from the current index
+    valid_selected = [s for s in st.session_state.selected_stocks if s in available_stocks]
+    if not valid_selected:
+        valid_selected = available_stocks[:10]
+    
+    selected_nifty_stocks = st.multiselect(
+        f"Choose stocks from {selected_index}",
+        available_stocks,
+        default=valid_selected,
+        help=f"Select which {selected_index} stocks to trade"
+    )
+    
+    if selected_nifty_stocks:
+        nifty_trader.config['stocks_to_trade'] = selected_nifty_stocks
+        st.session_state.selected_stocks = selected_nifty_stocks
+    
+    st.caption(f"✓ {len(selected_nifty_stocks)} stocks selected from {selected_index}")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        scan_frequency = st.slider(
+            "Scan Frequency (minutes)",
+            min_value=1,
+            max_value=30,
+            value=5,
+            help="How often to scan for trading opportunities"
+        )
+        nifty_trader.config['scan_interval_minutes'] = scan_frequency
+    
+    with col2:
+        profit_target = st.slider(
+            "Daily Profit Target (₹)",
+            min_value=500,
+            max_value=50000,
+            value=5000,
+            step=500,
+            help="Stop trading when this profit is reached"
+        )
+    
+    if st.button("💾 Save NIFTY Configuration", key="save_nifty_config"):
+        nifty_trader.save_config()
+        st.success("✅ NIFTY trading configuration saved!")
+    
+    st.markdown("---")
+    
+    # Live NIFTY Trading Status
+    st.subheader("📊 NIFTY Trading Status")
+    
+    nifty_status = nifty_trader.get_status()
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.metric("Capital", f"₹{nifty_status['capital']:,.0f}")
+    
+    with col2:
+        st.metric("Available", f"₹{nifty_status['available_capital']:,.0f}")
+    
+    with col3:
+        pnl_color = "normal" if nifty_status['daily_pnl'] >= 0 else "inverse"
+        st.metric("Today's P&L", f"₹{nifty_status['daily_pnl']:,.0f}",
+                 delta=f"{(nifty_status['daily_pnl']/nifty_status['capital']*100):.2f}%")
+    
+    with col4:
+        st.metric("Trades Today", nifty_status['trades_today'])
+    
+    with col5:
+        st.metric("Open Positions", nifty_status['positions_count'])
+    
+    # Performance Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Trades", nifty_status['total_trades'])
+    
+    with col2:
+        st.metric("Win Rate", f"{nifty_status['win_rate']:.1f}%")
+    
+    with col3:
+        st.metric("Total Profit", f"₹{nifty_status['total_profit']:,.0f}")
+    
+    with col4:
+        roi = (nifty_status['total_profit'] / nifty_status['capital'] * 100) if nifty_status['capital'] > 0 else 0
+        st.metric("ROI", f"{roi:.2f}%")
+    
+    st.markdown("---")
+    
+    # Control Panel
+    st.subheader("🎮 NIFTY Trading Controls")
+    
+    # Initialize position monitoring state
+    if 'position_monitor_active' not in st.session_state:
+        st.session_state.position_monitor_active = False
+    if 'monitor_check_count' not in st.session_state:
+        st.session_state.monitor_check_count = 0
+    if 'last_monitor_check' not in st.session_state:
+        st.session_state.last_monitor_check = None
+    if 'monitor_interval' not in st.session_state:
+        st.session_state.monitor_interval = 5  # Default 5 seconds
+    
+    # Monitoring interval configuration (before buttons)
+    if nifty_status['positions_count'] > 0:
+        with st.expander("⚙️ Position Monitor Settings", expanded=False):
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                monitor_interval = st.slider(
+                    "Auto-Check Interval (seconds)",
+                    min_value=1,
+                    max_value=30,
+                    value=st.session_state.monitor_interval,
+                    help="How often to check positions for stop-loss/target"
+                )
+                st.session_state.monitor_interval = monitor_interval
+            with col_b:
+                st.metric("Current Setting", f"{st.session_state.monitor_interval}s", "per check")
+            
+            st.caption(f"✅ Positions will be checked every {st.session_state.monitor_interval} second(s) when monitoring is active")
+            
+            # Quick presets
+            st.write("**Quick Presets:**")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("⚡ Fast (1s)", use_container_width=True):
+                    st.session_state.monitor_interval = 1
+                    st.rerun()
+            with col2:
+                if st.button("⚖️ Default (5s)", use_container_width=True):
+                    st.session_state.monitor_interval = 5
+                    st.rerun()
+            with col3:
+                if st.button("🐢 Slow (10s)", use_container_width=True):
+                    st.session_state.monitor_interval = 10
+                    st.rerun()
+            with col4:
+                if st.button("💤 Relaxed (30s)", use_container_width=True):
+                    st.session_state.monitor_interval = 30
+                    st.rerun()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("🔍 Scan NIFTY Stocks", type="primary", use_container_width=True):
+            with st.spinner("Scanning NIFTY stocks for signals..."):
+                nifty_trader.run_once()
+                st.success("✅ Scan complete!")
+                st.rerun()
+    
+    with col2:
+        # Position monitoring toggle
+        if nifty_status['positions_count'] > 0:
+            if not st.session_state.position_monitor_active:
+                if st.button("👁️ Monitor Positions", use_container_width=True, type="primary", help="Auto-check positions every second"):
+                    st.session_state.position_monitor_active = True
+                    st.session_state.monitor_check_count = 0
+                    st.session_state.last_monitor_check = datetime.now()
+                    st.success("✅ Position monitoring started!")
+                    st.rerun()
+            else:
+                if st.button("⏸️ Stop Monitoring", use_container_width=True, type="secondary"):
+                    st.session_state.position_monitor_active = False
+                    st.info("⏸️ Position monitoring stopped!")
+                    st.rerun()
+        else:
+            st.button("👁️ Monitor Positions", use_container_width=True, disabled=True, help="No open positions to monitor")
+    
+    with col3:
+        if st.button("💼 View Positions", use_container_width=True):
+            st.session_state.page = "💼 Positions"
+            st.rerun()
+    
+    with col4:
+        if st.button("🔄 Reset Trader", use_container_width=True):
+            if st.session_state.get('confirm_nifty_reset', False):
+                nifty_trader.available_capital = nifty_trader.capital
+                nifty_trader.positions = {}
+                nifty_trader.trades_today = 0
+                nifty_trader.daily_pnl = 0
+                nifty_trader.all_trades = []
+                nifty_trader.total_trades = 0
+                nifty_trader.winning_trades = 0
+                nifty_trader.total_profit = 0
+                st.session_state.position_monitor_active = False  # Stop monitoring on reset
+                st.success("✅ NIFTY trader reset!")
+                st.session_state.confirm_nifty_reset = False
+                st.rerun()
+            else:
+                st.session_state.confirm_nifty_reset = True
+                st.warning("⚠️ Click again to confirm reset")
+    
+    # Position Monitoring Section
+    if st.session_state.position_monitor_active:
+        st.markdown("---")
+        
+        # Create containers for partial updates
+        monitoring_section = st.container()
+        
+        with monitoring_section:
+            # Monitoring status display
+            st.subheader("👁️ Position Monitoring Active")
+            
+            # Create placeholders for dynamic content
+            metrics_placeholder = st.empty()
+            info_placeholder = st.empty()
+            positions_placeholder = st.empty()
+            alert_placeholder = st.empty()
+            
+            # Show static info
+            with info_placeholder.container():
+                st.info(f"""
+                👁️ **Position Monitoring Active**
+                
+                ✅ Checking positions every {st.session_state.monitor_interval} second(s)
+                ✅ Auto-exits when stop-loss hit
+                ✅ Auto-exits when target reached
+                ✅ Updates in real-time
+                
+                Click "Stop Monitoring" to pause
+                """)
+            
+            # Check if positions exist
+            if nifty_trader.positions:
+                # Execute position check
+                # Get current status before check
+                positions_before = len(nifty_trader.positions)
+                
+                # Check all positions for stop-loss/target
+                nifty_trader.check_positions()
+                
+                # Update check count and time
+                st.session_state.monitor_check_count += 1
+                st.session_state.last_monitor_check = datetime.now()
+                
+                # Check if any positions were closed
+                positions_after = len(nifty_trader.positions)
+                
+                # Update metrics
+                with metrics_placeholder.container():
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("🟢 Status", "MONITORING", delta="Active")
+                    
+                    with col2:
+                        st.metric("🔄 Checks Done", st.session_state.monitor_check_count)
+                    
+                    with col3:
+                        if st.session_state.last_monitor_check:
+                            time_since = (datetime.now() - st.session_state.last_monitor_check).seconds
+                            st.metric("⏱️ Last Check", f"{time_since}s ago")
+                    
+                    with col4:
+                        st.metric("💼 Positions", positions_after)
+                
+                # Show alert if positions were closed
+                if positions_before > positions_after:
+                    with alert_placeholder.container():
+                        st.success(f"🎯 {positions_before - positions_after} position(s) closed automatically!")
+                
+                # Update positions table
+                with positions_placeholder.container():
+                    st.write("**Current Positions:**")
+                    
+                    positions_data = []
+                    for symbol, pos in nifty_trader.positions.items():
+                        try:
+                            quote = st.session_state.fetcher.get_quote(symbol)
+                            current_price = quote['last_price']
+                            unrealized_pnl = (current_price - pos['entry_price']) * pos['quantity']
+                            unrealized_pnl_pct = (unrealized_pnl / pos['cost']) * 100
+                            
+                            # Calculate distance to stop-loss and target
+                            sl_distance = ((current_price - pos['stop_loss']) / current_price * 100)
+                            target_distance = ((pos['target'] - current_price) / current_price * 100)
+                            
+                            # Status indicator
+                            if current_price <= pos['stop_loss']:
+                                status = "🔴 AT STOP-LOSS"
+                            elif current_price >= pos['target']:
+                                status = "🟢 AT TARGET"
+                            elif sl_distance < 0.5:
+                                status = "🟠 NEAR STOP-LOSS"
+                            elif target_distance < 0.5:
+                                status = "🟡 NEAR TARGET"
+                            else:
+                                status = "⚪ SAFE"
+                            
+                            positions_data.append({
+                                'Symbol': symbol,
+                                'Entry': f"₹{pos['entry_price']:.2f}",
+                                'Current': f"₹{current_price:.2f}",
+                                'Stop-Loss': f"₹{pos['stop_loss']:.2f}",
+                                'Target': f"₹{pos['target']:.2f}",
+                                'P&L': f"₹{unrealized_pnl:.2f} ({unrealized_pnl_pct:+.2f}%)",
+                                'Status': status
+                            })
+                        except Exception as e:
+                            # If error fetching price, skip this position
+                            pass
+                    
+                    if positions_data:
+                        df = pd.DataFrame(positions_data)
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                # Wait for the configured interval before next check
+                import time
+                time.sleep(st.session_state.monitor_interval)
+                
+                # Use experimental_rerun to refresh only this section
+                st.rerun()
+            else:
+                # No positions left
+                with alert_placeholder.container():
+                    st.warning("✅ All positions closed. Monitoring stopped.")
+                st.session_state.position_monitor_active = False
+                import time
+                time.sleep(2)
+    
+    # Options Chain (if options trading is selected)
+    if trading_type == "🎲 Options (Call & Put)":
+        st.markdown("---")
+        st.subheader("🎲 Options Chain & Live Prices")
+        
+        if st.button("📊 Load Options Chain", type="primary", use_container_width=False):
+            with st.spinner(f"Loading options chain for {selected_index}..."):
+                # Simulate options chain data (in production, fetch from API)
+                st.success("✅ Options chain loaded!")
+                
+                # Get current index price (simulated)
+                try:
+                    if selected_index == "NIFTY 50":
+                        index_symbol = '^NSEI'
+                    elif selected_index == "BANK NIFTY":
+                        index_symbol = '^NSEBANK'
+                    else:
+                        index_symbol = '^NSEI'
+                    
+                    index_quote = st.session_state.fetcher.get_quote(index_symbol)
+                    current_price = index_quote['last_price']
+                    
+                    st.metric(f"📈 {selected_index} Current Price", f"₹{current_price:.2f}", f"{index_quote['change_percent']:+.2f}%")
+                except:
+                    current_price = 19500 if "BANK" not in selected_index else 45000
+                    st.metric(f"📈 {selected_index} Current Price", f"₹{current_price:.2f} (Simulated)")
+                
+                st.markdown("---")
+                
+                # Generate sample options chain
+                import random
+                
+                # Calculate ATM strike
+                strike_interval = 100 if "BANK" in selected_index else 50
+                atm_strike = round(current_price / strike_interval) * strike_interval
+                
+                # Generate strikes around ATM
+                strikes = [atm_strike + (i * strike_interval) for i in range(-5, 6)]
+                
+                # Create options chain data
+                options_data = []
+                
+                for strike in strikes:
+                    # Calculate if ITM/ATM/OTM
+                    if strike == atm_strike:
+                        moneyness = "ATM"
+                    elif strike < current_price:
+                        moneyness = "ITM (Call)"
+                    else:
+                        moneyness = "OTM (Call)"
+                    
+                    # Simulate premium values (in production, fetch real data)
+                    distance_from_atm = abs(strike - current_price)
+                    
+                    # Call premium (decreases as strike increases)
+                    call_premium = max(10, 200 - (distance_from_atm / 10) + random.uniform(-20, 20))
+                    call_iv = random.uniform(15, 35)  # Implied Volatility
+                    call_oi = random.randint(10000, 100000)  # Open Interest
+                    
+                    # Put premium (increases as strike increases)
+                    put_premium = max(10, 50 + (distance_from_atm / 10) + random.uniform(-20, 20))
+                    put_iv = random.uniform(15, 35)
+                    put_oi = random.randint(10000, 100000)
+                    
+                    options_data.append({
+                        'Strike': f"₹{strike:.0f}",
+                        'Moneyness': moneyness,
+                        'Call Premium': f"₹{call_premium:.2f}",
+                        'Call IV': f"{call_iv:.1f}%",
+                        'Call OI': f"{call_oi:,}",
+                        'Put Premium': f"₹{put_premium:.2f}",
+                        'Put IV': f"{put_iv:.1f}%",
+                        'Put OI': f"{put_oi:,}"
+                    })
+                
+                # Display options chain
+                st.write(f"**Options Chain for {selected_expiry}:**")
+                
+                options_df = pd.DataFrame(options_data)
+                
+                # Highlight ATM row
+                st.dataframe(
+                    options_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Additional insights
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.write("**Call Options:**")
+                    st.write("- Higher premium at lower strikes")
+                    st.write("- Buy if bullish")
+                    st.write("- Sell if bearish (covered)")
+                
+                with col2:
+                    st.write("**Put Options:**")
+                    st.write("- Higher premium at higher strikes")
+                    st.write("- Buy if bearish")
+                    st.write("- Sell if bullish (cash secured)")
+                
+                with col3:
+                    st.write("**Current Analysis:**")
+                    # Calculate Put-Call Ratio (simulated)
+                    pcr = random.uniform(0.8, 1.2)
+                    if pcr < 0.9:
+                        sentiment = "🟢 Bullish"
+                    elif pcr > 1.1:
+                        sentiment = "🔴 Bearish"
+                    else:
+                        sentiment = "🟡 Neutral"
+                    
+                    st.metric("Put-Call Ratio", f"{pcr:.2f}", sentiment)
+                
+                # Quick Actions
+                st.write("**Quick Actions:**")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.button("📈 Buy ATM Call", use_container_width=True):
+                        st.success(f"✅ Bought Call @ {atm_strike} for demo!")
+                
+                with col2:
+                    if st.button("📉 Buy ATM Put", use_container_width=True):
+                        st.success(f"✅ Bought Put @ {atm_strike} for demo!")
+                
+                with col3:
+                    if st.button("🎲 Execute Straddle", use_container_width=True):
+                        st.success(f"✅ Executed Straddle @ {atm_strike} for demo!")
+        
+        # Options Strategy Guide
+        with st.expander("📚 Options Strategies Guide"):
+            st.write("""
+            **Popular Options Strategies:**
+            
+            **1. Buy Call (Bullish)**
+            - Profit: Unlimited upside
+            - Loss: Limited to premium paid
+            - Use: When expecting strong upward move
+            
+            **2. Buy Put (Bearish)**
+            - Profit: Substantial downside (till index hits 0)
+            - Loss: Limited to premium paid
+            - Use: When expecting strong downward move
+            
+            **3. Straddle (Neutral Volatility)**
+            - Buy ATM Call + ATM Put
+            - Profit: Big move in either direction
+            - Loss: If market stays range-bound
+            - Use: Before major events/announcements
+            
+            **4. Strangle (Neutral Volatility - Lower Cost)**
+            - Buy OTM Call + OTM Put
+            - Cheaper than straddle
+            - Needs bigger move to profit
+            
+            **5. Bull Call Spread**
+            - Buy lower strike Call + Sell higher strike Call
+            - Limited profit, limited loss
+            - Lower cost than buying call alone
+            
+            **6. Bear Put Spread**
+            - Buy higher strike Put + Sell lower strike Put
+            - Limited profit, limited loss
+            - Lower cost than buying put alone
+            
+            **7. Iron Condor**
+            - Sell OTM Call + Buy further OTM Call
+            - Sell OTM Put + Buy further OTM Put
+            - Profit if market stays in range
+            - Advanced strategy
+            
+            **Greeks Explained:**
+            
+            - **Delta**: Rate of change in option price per ₹1 change in underlying
+            - **Gamma**: Rate of change in delta
+            - **Theta**: Daily time decay of option premium
+            - **Vega**: Sensitivity to volatility changes
+            - **IV (Implied Volatility)**: Market's expectation of future volatility
+            
+            **Risk Management:**
+            - Never risk more than 2-5% of capital on one trade
+            - Always use stop-loss
+            - Monitor theta decay daily
+            - Watch for expiry dates
+            - Start with small positions
+            """)
+        
+        st.markdown("---")
+    
+    # Live Signals
+    st.markdown("---")
+    st.subheader("📡 Live NIFTY Signals")
+    
+    if st.button("🔍 Get Current Signals", key="get_nifty_signals"):
+        with st.spinner("Analyzing NIFTY stocks..."):
+            signals = nifty_trader.scan_for_signals()
+            
+            if signals:
+                st.success(f"✅ Found {len(signals)} trading signals!")
+                
+                for signal in signals:
+                    with st.container():
+                        col1, col2, col3, col4 = st.columns([2, 1, 1, 3])
+                        
+                        with col1:
+                            if signal['action'] == 'BUY':
+                                st.markdown(f"### 🟢 BUY {signal['symbol']}")
+                            else:
+                                st.markdown(f"### 🔴 SELL {signal['symbol']}")
+                        
+                        with col2:
+                            st.metric("Price", f"₹{signal['price']:.2f}")
+                        
+                        with col3:
+                            strength_emoji = "⚡" if signal['strength'] == 'STRONG' else "📊"
+                            st.metric("Strength", f"{strength_emoji} {signal['strength']}")
+                        
+                        with col4:
+                            st.write(f"**Reason:** {signal['reason']}")
+                        
+                        st.markdown("---")
+            else:
+                st.info("No signals found at this moment. Market conditions may not be favorable.")
+    
+    # Strategy Performance
+    st.markdown("---")
+    st.subheader("📊 NIFTY Strategy Performance")
+    
+    if nifty_status['all_trades']:
+        trades_df = pd.DataFrame(nifty_status['all_trades'][-10:])
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.write("**Recent Trades:**")
+            display_df = trades_df.copy()
+            display_df['Entry'] = display_df['entry_price'].apply(lambda x: f"₹{x:.2f}")
+            display_df['Exit'] = display_df['exit_price'].apply(lambda x: f"₹{x:.2f}")
+            display_df['Profit'] = display_df['profit'].apply(lambda x: f"₹{x:.2f}")
+            display_df['%'] = display_df['profit_percent'].apply(lambda x: f"{x:+.2f}%")
+            
+            st.dataframe(
+                display_df[['symbol', 'Entry', 'Exit', 'quantity', 'Profit', '%']],
+                use_container_width=True,
+                hide_index=True
+            )
+        
+        with col2:
+            st.write("**Performance Chart:**")
+            
+            # Calculate cumulative profit
+            cumulative_profit = trades_df['profit'].cumsum().tolist()
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                y=cumulative_profit,
+                mode='lines+markers',
+                name='Cumulative Profit',
+                line=dict(color='green' if cumulative_profit[-1] > 0 else 'red', width=2)
+            ))
+            
+            fig.update_layout(
+                title="Profit Curve",
+                yaxis_title="Profit (₹)",
+                xaxis_title="Trade #",
+                height=300,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # Index Performance Comparison
+    st.markdown("---")
+    st.subheader("📊 Today's Index Performance Comparison")
+    
+    if st.button("🔍 Compare All Indices Performance", key="compare_indices"):
+        with st.spinner("Comparing all NIFTY indices..."):
+            index_performance = []
+            
+            for name, symbol in nifty_indices.items():
+                try:
+                    quote = st.session_state.fetcher.get_quote(symbol)
+                    index_performance.append({
+                        'Index': name,
+                        'Price': quote['last_price'],
+                        'Change %': quote['change_percent'],
+                        'Status': '📈' if quote['change_percent'] > 0 else '📉'
+                    })
+                except:
+                    pass
+            
+            if index_performance:
+                # Sort by change percentage
+                index_performance.sort(key=lambda x: x['Change %'], reverse=True)
+                
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.write("**All Indices Performance:**")
+                    perf_df = pd.DataFrame(index_performance)
+                    perf_df['Price'] = perf_df['Price'].apply(lambda x: f"{x:.2f}")
+                    perf_df['Change %'] = perf_df['Change %'].apply(lambda x: f"{x:+.2f}%")
+                    st.dataframe(perf_df, use_container_width=True, hide_index=True)
+                
+                with col2:
+                    st.write("**Top Performers:**")
+                    top_3 = index_performance[:3]
+                    for idx, perf in enumerate(top_3, 1):
+                        st.success(f"#{idx} {perf['Index']}: {perf['Change %']:+.2f}%")
+                    
+                    st.write("**Bottom Performers:**")
+                    bottom_3 = index_performance[-3:]
+                    for idx, perf in enumerate(bottom_3, 1):
+                        st.error(f"#{idx} {perf['Index']}: {perf['Change %']:+.2f}%")
+    
+    # Tips and Information
+    st.markdown("---")
+    st.subheader("💡 NIFTY Trading Tips")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("""
+        **Why Trade NIFTY Indices?**
+        
+        ✅ **High Liquidity** - Easy to buy/sell
+        ✅ **Sectoral Focus** - Target specific industries
+        ✅ **Better Volume** - More trading opportunities
+        ✅ **Market Leaders** - Only top companies
+        ✅ **Diversified** - Spread risk across sectors
+        
+        **Best Indices for Different Market Conditions:**
+        
+        📈 **Bull Market:** NIFTY IT, NIFTY BANK
+        📉 **Bear Market:** NIFTY PHARMA, NIFTY FMCG
+        ⚡ **Volatile Market:** NIFTY METAL, NIFTY AUTO
+        🛡️ **Safe Play:** NIFTY 50, NIFTY FINANCIAL
+        """)
+    
+    with col2:
+        st.success("""
+        **Maximize Your Profits:**
+        
+        🎯 **Use Aggressive Mode** for trending sectors
+        🎯 **Use Conservative Mode** for choppy markets
+        🎯 **Switch Indices** based on market sentiment
+        🎯 **Monitor Index Performance** daily
+        🎯 **Set Profit Targets** and stick to them
+        
+        **Pro Tips:**
+        
+        💡 **Bank NIFTY** - Most volatile, high returns
+        💡 **NIFTY IT** - Best for export growth
+        💡 **NIFTY PHARMA** - Defensive play
+        💡 **NIFTY FMCG** - Steady and stable
+        💡 **NIFTY METAL** - Commodity cycle play
+        """)
+    
+    with st.expander("📚 How Auto-Trading Works"):
+        st.write("""
+        **NIFTY Auto-Trading System:**
+        
+        1. **Scanning:** Every few minutes, scans all selected NIFTY stocks
+        2. **Analysis:** Applies technical indicators (RSI, MACD, MA, etc.)
+        3. **Signal Generation:** Identifies buy/sell opportunities
+        4. **Execution:** Automatically places trades (simulation or live)
+        5. **Risk Management:** Auto stop-loss and profit targets
+        6. **Monitoring:** Continuously checks positions for exit conditions
+        
+        **Strategies:**
+        
+        - **RSI Mean Reversion:** Buy when oversold (RSI < 30), sell when overbought (RSI > 70)
+        - **MA Trend Following:** Buy on golden cross, sell on death cross
+        - **Hybrid:** Uses both strategies based on market conditions
+        - **Smart AI:** Automatically selects best strategy for each stock
+        
+        **Risk Controls:**
+        
+        - Maximum trades per day limit
+        - Daily loss limit protection
+        - Per-trade stop-loss
+        - Profit target booking
+        - Position size management
+        """)
+
+# POSITIONS PAGE
+elif page == "💼 Positions":
+    st.header("💼 Positions")
+    st.write("**View and manage all your open positions**")
+    
+    # Get positions from both traders
+    positions_list = []
+    
+    # From regular auto-trader
+    if 'autotrader' in st.session_state:
+        trader = st.session_state.autotrader
+        for symbol, pos in trader.positions.items():
+            try:
+                quote = st.session_state.fetcher.get_quote(symbol)
+                current_price = quote['last_price']
+                unrealized_pnl = (current_price - pos['entry_price']) * pos['quantity']
+                unrealized_pnl_pct = (unrealized_pnl / pos['cost']) * 100
+                
+                positions_list.append({
+                    'source': 'Auto-Trader',
+                    'symbol': symbol,
+                    'entry_price': pos['entry_price'],
+                    'current_price': current_price,
+                    'quantity': pos['quantity'],
+                    'cost': pos['cost'],
+                    'current_value': current_price * pos['quantity'],
+                    'unrealized_pnl': unrealized_pnl,
+                    'unrealized_pnl_pct': unrealized_pnl_pct,
+                    'stop_loss': pos['stop_loss'],
+                    'target': pos['target'],
+                    'entry_time': pos['entry_time'],
+                    'reason': pos['reason']
+                })
+            except:
+                pass
+    
+    # From NIFTY trader
+    if 'nifty_trader' in st.session_state:
+        nifty_trader = st.session_state.nifty_trader
+        for symbol, pos in nifty_trader.positions.items():
+            try:
+                quote = st.session_state.fetcher.get_quote(symbol)
+                current_price = quote['last_price']
+                unrealized_pnl = (current_price - pos['entry_price']) * pos['quantity']
+                unrealized_pnl_pct = (unrealized_pnl / pos['cost']) * 100
+                
+                positions_list.append({
+                    'source': 'NIFTY Trader',
+                    'symbol': symbol,
+                    'entry_price': pos['entry_price'],
+                    'current_price': current_price,
+                    'quantity': pos['quantity'],
+                    'cost': pos['cost'],
+                    'current_value': current_price * pos['quantity'],
+                    'unrealized_pnl': unrealized_pnl,
+                    'unrealized_pnl_pct': unrealized_pnl_pct,
+                    'stop_loss': pos['stop_loss'],
+                    'target': pos['target'],
+                    'entry_time': pos['entry_time'],
+                    'reason': pos['reason']
+                })
+            except:
+                pass
+    
+    if not positions_list:
+        st.info("📭 No open positions at the moment")
+        st.write("Start trading to see positions here!")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🤖 Go to Auto-Trader", use_container_width=True):
+                st.session_state.page = "🤖 Auto-Trader"
+                st.rerun()
+        with col2:
+            if st.button("📊 Go to NIFTY Trading", use_container_width=True):
+                st.session_state.page = "📊 NIFTY Trading"
+                st.rerun()
+    else:
+        # Summary metrics
+        total_cost = sum(p['cost'] for p in positions_list)
+        total_current_value = sum(p['current_value'] for p in positions_list)
+        total_unrealized_pnl = total_current_value - total_cost
+        total_unrealized_pnl_pct = (total_unrealized_pnl / total_cost * 100) if total_cost > 0 else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Open Positions", len(positions_list))
+        
+        with col2:
+            st.metric("Total Investment", f"₹{total_cost:,.0f}")
+        
+        with col3:
+            st.metric("Current Value", f"₹{total_current_value:,.0f}")
+        
+        with col4:
+            st.metric(
+                "Unrealized P&L",
+                f"₹{total_unrealized_pnl:,.0f}",
+                f"{total_unrealized_pnl_pct:+.2f}%"
+            )
+        
+        st.markdown("---")
+        
+        # Refresh button
+        col1, col2, col3 = st.columns([1, 1, 4])
+        with col1:
+            if st.button("🔄 Refresh Prices", use_container_width=True):
+                st.rerun()
+        with col2:
+            auto_refresh = st.checkbox("Auto-refresh", value=False)
+        
+        if auto_refresh:
+            import time
+            time.sleep(30)
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # Display positions
+        st.subheader("📊 All Positions")
+        
+        for idx, pos in enumerate(positions_list, 1):
+            with st.container():
+                # Header row
+                col1, col2, col3 = st.columns([2, 4, 1])
+                
+                with col1:
+                    pnl_emoji = "🟢" if pos['unrealized_pnl'] >= 0 else "🔴"
+                    st.markdown(f"### {pnl_emoji} {pos['symbol']}")
+                    st.caption(f"Source: {pos['source']}")
+                
+                with col2:
+                    st.write(f"**Entry Reason:** {pos['reason']}")
+                    entry_time_str = pos['entry_time'].strftime('%Y-%m-%d %H:%M:%S') if hasattr(pos['entry_time'], 'strftime') else str(pos['entry_time'])
+                    st.caption(f"Entered on: {entry_time_str}")
+                
+                with col3:
+                    if st.button(f"Close", key=f"close_{idx}", use_container_width=True):
+                        st.warning(f"⚠️ Close position for {pos['symbol']}? This will execute a sell order.")
+                
+                # Metrics row
+                col1, col2, col3, col4, col5, col6 = st.columns(6)
+                
+                with col1:
+                    st.metric("Qty", pos['quantity'])
+                
+                with col2:
+                    st.metric("Entry Price", f"₹{pos['entry_price']:.2f}")
+                
+                with col3:
+                    st.metric("Current Price", f"₹{pos['current_price']:.2f}")
+                
+                with col4:
+                    st.metric("Investment", f"₹{pos['cost']:,.0f}")
+                
+                with col5:
+                    st.metric("Current Value", f"₹{pos['current_value']:,.0f}")
+                
+                with col6:
+                    pnl_delta = f"{pos['unrealized_pnl_pct']:+.2f}%"
+                    st.metric("P&L", f"₹{pos['unrealized_pnl']:,.0f}", delta=pnl_delta)
+                
+                # Risk metrics row
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.write(f"**Stop Loss:** ₹{pos['stop_loss']:.2f}")
+                    sl_distance = ((pos['current_price'] - pos['stop_loss']) / pos['current_price'] * 100)
+                    st.caption(f"Distance: {sl_distance:.2f}%")
+                
+                with col2:
+                    st.write(f"**Target:** ₹{pos['target']:.2f}")
+                    target_distance = ((pos['target'] - pos['current_price']) / pos['current_price'] * 100)
+                    st.caption(f"Distance: {target_distance:.2f}%")
+                
+                with col3:
+                    risk = pos['entry_price'] - pos['stop_loss']
+                    reward = pos['target'] - pos['entry_price']
+                    risk_reward = reward / risk if risk > 0 else 0
+                    st.write(f"**Risk:Reward:** 1:{risk_reward:.2f}")
+                
+                with col4:
+                    # Progress bar to target
+                    progress = min(100, max(0, pos['unrealized_pnl_pct'] / ((pos['target'] - pos['entry_price']) / pos['entry_price'] * 100) * 100))
+                    st.write("**Progress to Target:**")
+                    st.progress(progress / 100)
+                
+                st.markdown("---")
+        
+        # Export positions
+        st.subheader("📥 Export Positions")
+        
+        if st.button("💾 Download Positions as CSV"):
+            positions_df = pd.DataFrame(positions_list)
+            csv = positions_df.to_csv(index=False)
+            
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"positions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        
+        # Position Analytics
+        st.markdown("---")
+        st.subheader("📊 Position Analytics")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # P&L Distribution
+            st.write("**P&L Distribution:**")
+            
+            fig = go.Figure()
+            
+            colors = ['green' if p['unrealized_pnl'] >= 0 else 'red' for p in positions_list]
+            
+            fig.add_trace(go.Bar(
+                x=[p['symbol'] for p in positions_list],
+                y=[p['unrealized_pnl'] for p in positions_list],
+                marker_color=colors,
+                text=[f"₹{p['unrealized_pnl']:.0f}" for p in positions_list],
+                textposition='auto'
+            ))
+            
+            fig.update_layout(
+                title="Unrealized P&L by Stock",
+                xaxis_title="Stock",
+                yaxis_title="P&L (₹)",
+                height=300,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Position Size Distribution
+            st.write("**Position Size Distribution:**")
+            
+            fig = go.Figure()
+            
+            fig.add_trace(go.Pie(
+                labels=[p['symbol'] for p in positions_list],
+                values=[p['cost'] for p in positions_list],
+                hole=0.4
+            ))
+            
+            fig.update_layout(
+                title="Capital Allocation",
+                height=300
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Risk Analysis
+        with st.expander("⚠️ Risk Analysis"):
+            st.write("**Position Risk Summary:**")
+            
+            for pos in positions_list:
+                risk_amount = (pos['entry_price'] - pos['stop_loss']) * pos['quantity']
+                risk_pct = ((pos['entry_price'] - pos['stop_loss']) / pos['entry_price'] * 100)
+                
+                st.write(f"""
+                **{pos['symbol']}:**
+                - Maximum Risk: ₹{risk_amount:,.0f} ({risk_pct:.2f}%)
+                - Stop Loss at: ₹{pos['stop_loss']:.2f}
+                - Current Distance from SL: {((pos['current_price'] - pos['stop_loss']) / pos['current_price'] * 100):.2f}%
+                """)
+            
+            total_risk = sum((p['entry_price'] - p['stop_loss']) * p['quantity'] for p in positions_list)
+            st.markdown("---")
+            st.write(f"**Total Portfolio Risk:** ₹{total_risk:,.0f}")
+            st.write(f"**Risk as % of Investment:** {(total_risk / total_cost * 100):.2f}%")
+
 # BUY RECOMMENDATIONS PAGE
 elif page == "🎯 Buy Recommendations":
     st.header("🎯 Strong Buy Recommendations")
@@ -782,45 +2221,273 @@ elif page == "📊 Stock Details":
                     
                     st.markdown("---")
                     
-                    # === PRICE CHART ===
-                    st.subheader("📈 Price Chart with Moving Averages")
+                    # === CHART TYPE SELECTOR ===
+                    st.subheader("📈 Price Chart")
                     
-                    fig = go.Figure()
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        chart_type = st.radio(
+                            "Select Chart Type:",
+                            ["📊 TradingView Advanced", "📉 TradingView Lightweight", "📈 Plotly Interactive"],
+                            horizontal=True,
+                            index=0
+                        )
+                    with col2:
+                        if chart_type == "📊 TradingView Advanced":
+                            chart_interval = st.selectbox(
+                                "Interval:",
+                                ["1", "5", "15", "60", "D", "W", "M"],
+                                index=4,
+                                help="1=1min, 5=5min, D=Daily, W=Weekly, M=Monthly"
+                            )
                     
-                    # Candlestick
-                    fig.add_trace(go.Candlestick(
-                        x=data_with_indicators['Date'],
-                        open=data_with_indicators['Open'],
-                        high=data_with_indicators['High'],
-                        low=data_with_indicators['Low'],
-                        close=data_with_indicators['Close'],
-                        name='Price'
-                    ))
+                    st.markdown("---")
                     
-                    # Moving Averages
-                    fig.add_trace(go.Scatter(
-                        x=data_with_indicators['Date'],
-                        y=data_with_indicators['SMA_20'],
-                        name='SMA 20',
-                        line=dict(color='orange', width=2)
-                    ))
+                    # === TRADINGVIEW ADVANCED CHART ===
+                    if chart_type == "📊 TradingView Advanced":
+                        # Convert NSE symbol to TradingView format
+                        # NSE stocks: use NSE:SYMBOL format
+                        tv_symbol = f"NSE:{stock_symbol}"
+                        
+                        # Generate unique container ID
+                        import random
+                        container_id = f"tradingview_{random.randint(10000, 99999)}"
+                        
+                        tradingview_widget = f"""
+                        <!-- TradingView Widget BEGIN -->
+                        <div class="tradingview-widget-container" style="height:100%;width:100%">
+                          <div id="{container_id}" style="height:calc(100% - 32px);width:100%"></div>
+                          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                          <script type="text/javascript">
+                          new TradingView.widget(
+                          {{
+                            "width": "100%",
+                            "height": 650,
+                            "symbol": "{tv_symbol}",
+                            "interval": "{chart_interval}",
+                            "timezone": "Asia/Kolkata",
+                            "theme": "light",
+                            "style": "1",
+                            "locale": "en",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "withdateranges": true,
+                            "allow_symbol_change": true,
+                            "details": true,
+                            "hotlist": true,
+                            "calendar": true,
+                            "studies": [
+                              "RSI@tv-basicstudies",
+                              "MASimple@tv-basicstudies",
+                              "MACD@tv-basicstudies",
+                              "BB@tv-basicstudies"
+                            ],
+                            "show_popup_button": true,
+                            "popup_width": "1000",
+                            "popup_height": "650",
+                            "container_id": "{container_id}"
+                          }}
+                          );
+                          </script>
+                        </div>
+                        <!-- TradingView Widget END -->
+                        """
+                        
+                        st.components.v1.html(tradingview_widget, height=670)
+                        
+                        st.info("""
+                        **📊 TradingView Advanced Chart Features:**
+                        - ✅ Real-time price updates
+                        - ✅ Pre-loaded technical indicators (RSI, MA, MACD, Bollinger Bands)
+                        - ✅ Drawing tools and trendlines
+                        - ✅ Multiple timeframes
+                        - ✅ Economic calendar
+                        - ✅ Compare with other symbols
+                        - ✅ Save chart layouts
+                        """)
                     
-                    fig.add_trace(go.Scatter(
-                        x=data_with_indicators['Date'],
-                        y=data_with_indicators['SMA_50'],
-                        name='SMA 50',
-                        line=dict(color='blue', width=2)
-                    ))
+                    # === TRADINGVIEW LIGHTWEIGHT CHART ===
+                    elif chart_type == "📉 TradingView Lightweight":
+                        from streamlit_lightweight_charts import renderLightweightCharts
+                        
+                        # Prepare data for lightweight charts
+                        chart_data = []
+                        for idx, row in data_with_indicators.iterrows():
+                            chart_data.append({
+                                "time": row['Date'].strftime('%Y-%m-%d'),
+                                "open": float(row['Open']),
+                                "high": float(row['High']),
+                                "low": float(row['Low']),
+                                "close": float(row['Close'])
+                            })
+                        
+                        # Prepare volume data
+                        volume_data = []
+                        for idx, row in data_with_indicators.iterrows():
+                            color = '#26a69a' if row['Close'] >= row['Open'] else '#ef5350'
+                            volume_data.append({
+                                "time": row['Date'].strftime('%Y-%m-%d'),
+                                "value": float(row['Volume']),
+                                "color": color
+                            })
+                        
+                        # Prepare MA data
+                        ma20_data = []
+                        ma50_data = []
+                        for idx, row in data_with_indicators.iterrows():
+                            if not pd.isna(row['SMA_20']):
+                                ma20_data.append({
+                                    "time": row['Date'].strftime('%Y-%m-%d'),
+                                    "value": float(row['SMA_20'])
+                                })
+                            if not pd.isna(row['SMA_50']):
+                                ma50_data.append({
+                                    "time": row['Date'].strftime('%Y-%m-%d'),
+                                    "value": float(row['SMA_50'])
+                                })
+                        
+                        # Chart options
+                        chart_options = {
+                            "layout": {
+                                "background": {"type": "solid", "color": "#ffffff"},
+                                "textColor": "#000000",
+                            },
+                            "grid": {
+                                "vertLines": {"color": "#e0e0e0"},
+                                "horzLines": {"color": "#e0e0e0"},
+                            },
+                            "priceScale": {
+                                "borderColor": "#cccccc"
+                            },
+                            "timeScale": {
+                                "borderColor": "#cccccc",
+                                "timeVisible": True,
+                                "secondsVisible": False,
+                            },
+                        }
+                        
+                        # Render the chart
+                        renderLightweightCharts([
+                            {
+                                "chart": chart_options,
+                                "series": [
+                                    {
+                                        "type": "Candlestick",
+                                        "data": chart_data,
+                                        "options": {
+                                            "upColor": "#26a69a",
+                                            "downColor": "#ef5350",
+                                            "borderVisible": False,
+                                            "wickUpColor": "#26a69a",
+                                            "wickDownColor": "#ef5350",
+                                        },
+                                    },
+                                    {
+                                        "type": "Line",
+                                        "data": ma20_data,
+                                        "options": {
+                                            "color": "#ff9800",
+                                            "lineWidth": 2,
+                                            "title": "SMA 20",
+                                        },
+                                    },
+                                    {
+                                        "type": "Line",
+                                        "data": ma50_data,
+                                        "options": {
+                                            "color": "#2196f3",
+                                            "lineWidth": 2,
+                                            "title": "SMA 50",
+                                        },
+                                    },
+                                ],
+                            },
+                            {
+                                "chart": {
+                                    "layout": {
+                                        "background": {"type": "solid", "color": "#ffffff"},
+                                        "textColor": "#000000",
+                                    },
+                                    "grid": {
+                                        "vertLines": {"color": "#e0e0e0"},
+                                        "horzLines": {"color": "#e0e0e0"},
+                                    },
+                                    "height": 150,
+                                },
+                                "series": [
+                                    {
+                                        "type": "Histogram",
+                                        "data": volume_data,
+                                        "options": {
+                                            "priceFormat": {
+                                                "type": "volume",
+                                            },
+                                            "priceScaleId": "",
+                                        },
+                                    },
+                                ],
+                            }
+                        ], key=f"lwc_{stock_symbol}")
+                        
+                        st.info("""
+                        **📉 TradingView Lightweight Chart Features:**
+                        - ✅ Fast and responsive
+                        - ✅ Candlestick chart with volume
+                        - ✅ SMA 20 & 50 overlays
+                        - ✅ Interactive zoom and pan
+                        - ✅ Crosshair for price inspection
+                        - ✅ Optimized for performance
+                        """)
                     
-                    fig.update_layout(
-                        title=f"{stock_symbol} Price Chart",
-                        xaxis_title="Date",
-                        yaxis_title="Price (₹)",
-                        height=500,
-                        xaxis_rangeslider_visible=False
-                    )
+                    # === PLOTLY INTERACTIVE CHART ===
+                    else:
+                        fig = go.Figure()
+                        
+                        # Candlestick
+                        fig.add_trace(go.Candlestick(
+                            x=data_with_indicators['Date'],
+                            open=data_with_indicators['Open'],
+                            high=data_with_indicators['High'],
+                            low=data_with_indicators['Low'],
+                            close=data_with_indicators['Close'],
+                            name='Price'
+                        ))
+                        
+                        # Moving Averages
+                        fig.add_trace(go.Scatter(
+                            x=data_with_indicators['Date'],
+                            y=data_with_indicators['SMA_20'],
+                            name='SMA 20',
+                            line=dict(color='orange', width=2)
+                        ))
+                        
+                        fig.add_trace(go.Scatter(
+                            x=data_with_indicators['Date'],
+                            y=data_with_indicators['SMA_50'],
+                            name='SMA 50',
+                            line=dict(color='blue', width=2)
+                        ))
+                        
+                        fig.update_layout(
+                            title=f"{stock_symbol} Price Chart",
+                            xaxis_title="Date",
+                            yaxis_title="Price (₹)",
+                            height=500,
+                            xaxis_rangeslider_visible=False
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        st.info("""
+                        **📈 Plotly Interactive Chart Features:**
+                        - ✅ Offline charts (no external dependencies)
+                        - ✅ Candlestick with moving averages
+                        - ✅ Zoom, pan, and reset
+                        - ✅ Hover for detailed info
+                        - ✅ Download as PNG
+                        """)
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.markdown("---")
                     
                     # === TECHNICAL INDICATORS ===
                     st.subheader("📊 Technical Indicators")

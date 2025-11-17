@@ -1,25 +1,16 @@
 {
     "mode": "SIMULATION",
-    "starting_capital": 10000,
-    "max_trades_per_day": 5,
+    "starting_capital": 100000,
+    "max_trades_per_day": 10,
     "max_loss_per_day": 1000,
-    "capital_per_trade_percent": 10,
+    "capital_per_trade_percent": 20,
     "strategy": "MA_Crossover",
     "stocks_to_trade": [
-        "TCS",
-        "INFY",
-        "HDFCBANK",
-        "ICICIBANK",
-        "RELIANCE",
-        "BHARTIARTL",
-        "SBIN",
-        "ITC",
-        "KOTAKBANK",
-        "LT"
+        "INFY"
     ],
-    "stop_loss_percent": 2,
-    "target_percent": 5,
-    "scan_interval_minutes": 30,
+    "stop_loss_percent": 3,
+    "target_percent": 7,
+    "scan_interval_minutes": 1,
     "require_confirmation": false,
     "rsi_oversold": 30,
     "rsi_overbought": 70

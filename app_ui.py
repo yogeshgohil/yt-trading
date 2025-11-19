@@ -986,6 +986,389 @@ elif page == "📊 NIFTY Trading":
     
     st.markdown("---")
     
+    # === AI AUTO-TRADING SECTION ===
+    st.subheader("🤖 AI Auto-Trading for NIFTY Options")
+    st.write("**Fully automated AI-powered options trading with machine learning**")
+    
+    # Initialize AI engine in session state
+    if 'ai_engine' not in st.session_state:
+        from ai_trading_engine import AITradingEngine
+        st.session_state.ai_engine = AITradingEngine(
+            capital=trading_capital,
+            max_positions=5
+        )
+    
+    ai_engine = st.session_state.ai_engine
+    
+    # AI Configuration
+    with st.expander("⚙️ AI Trading Configuration", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            ai_capital = st.number_input(
+                "AI Trading Capital (₹)",
+                min_value=50000,
+                max_value=5000000,
+                value=int(ai_engine.capital),
+                step=50000,
+                help="Capital allocated for AI trading"
+            )
+            
+            if ai_capital != ai_engine.capital:
+                ai_engine.capital = ai_capital
+                ai_engine.available_capital = ai_capital
+        
+        with col2:
+            max_positions_ai = st.slider(
+                "Max Positions",
+                min_value=1,
+                max_value=10,
+                value=ai_engine.max_positions,
+                help="Maximum simultaneous positions"
+            )
+            ai_engine.max_positions = max_positions_ai
+        
+        with col3:
+            max_trades_day = st.slider(
+                "Max Trades/Day",
+                min_value=5,
+                max_value=50,
+                value=ai_engine.max_trades_per_day,
+                help="Maximum trades per day"
+            )
+            ai_engine.max_trades_per_day = max_trades_day
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            max_loss_pct = st.slider(
+                "Max Daily Loss (%)",
+                min_value=1.0,
+                max_value=10.0,
+                value=5.0,
+                step=0.5,
+                help="Maximum loss allowed per day"
+            )
+            ai_engine.max_loss_per_day = ai_engine.capital * (max_loss_pct / 100)
+        
+        with col2:
+            max_trade_loss_pct = st.slider(
+                "Max Loss/Trade (%)",
+                min_value=0.5,
+                max_value=5.0,
+                value=2.0,
+                step=0.5,
+                help="Maximum loss per trade"
+            )
+            ai_engine.max_loss_per_trade = ai_engine.capital * (max_trade_loss_pct / 100)
+        
+        with col3:
+            min_confidence = st.slider(
+                "Min Confidence (%)",
+                min_value=30,
+                max_value=90,
+                value=60,
+                help="Minimum confidence to execute trade"
+            )
+        
+        st.info("""
+        **AI Trading Features:**
+        - 🧠 Machine learning-based decision making
+        - 📊 Automatic market condition analysis
+        - 🎯 Strategy selection based on market state
+        - 🛡️ Advanced risk management
+        - 📈 Continuous learning from performance
+        - ⚡ Real-time position monitoring
+        """)
+    
+    # AI Status Dashboard
+    ai_status = ai_engine.get_status()
+    
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    
+    with col1:
+        status_color = "🟢" if ai_status['is_active'] else "🔴"
+        st.metric("AI Status", f"{status_color} {'ACTIVE' if ai_status['is_active'] else 'STOPPED'}")
+    
+    with col2:
+        st.metric(
+            "Total Capital",
+            f"₹{ai_status['capital']:,.0f}",
+            help="Total allocated capital"
+        )
+    
+    with col3:
+        st.metric(
+            "Available",
+            f"₹{ai_status['available_capital']:,.0f}",
+            f"{(ai_status['available_capital']/ai_status['capital']*100):.1f}%"
+        )
+    
+    with col4:
+        st.metric(
+            "Open Positions",
+            f"{ai_status['open_positions']}/{ai_status['max_positions']}",
+            help="Current/Maximum positions"
+        )
+    
+    with col5:
+        pnl_delta = f"{ai_status['roi']:+.2f}%"
+        st.metric(
+            "Total P&L",
+            f"₹{ai_status['total_pnl']:,.0f}",
+            pnl_delta
+        )
+    
+    with col6:
+        st.metric(
+            "Trades Today",
+            f"{ai_status['trades_today']}/{ai_engine.max_trades_per_day}",
+            help="Today/Maximum"
+        )
+    
+    # AI Controls
+    st.markdown("---")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if not ai_status['is_active']:
+            if st.button("🚀 Start AI Trading", type="primary", use_container_width=True):
+                ai_engine.start()
+                st.success("✅ AI Trading Engine Started!")
+                st.info("AI will analyze market and execute trades automatically")
+                st.rerun()
+        else:
+            if st.button("⏸️ Stop AI Trading", type="secondary", use_container_width=True):
+                ai_engine.stop()
+                st.warning("⚠️ AI Trading Engine Stopped")
+                st.rerun()
+    
+    with col2:
+        if st.button("📊 Analyze Market", use_container_width=True):
+            with st.spinner("🧠 AI analyzing market conditions..."):
+                # Fetch NIFTY data
+                from datetime import datetime, timedelta
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=90)
+                
+                nifty_data = st.session_state.fetcher.get_historical_data(
+                    "^NSEI",
+                    start_date.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d')
+                )
+                
+                if not nifty_data.empty:
+                    decision = ai_engine.analyze_and_decide(nifty_data, 'NIFTY 50')
+                    
+                    if decision:
+                        st.session_state.last_ai_decision = decision
+                        
+                        if decision['decision'] == 'TRADE':
+                            st.success(f"✅ {decision['reason']}")
+                            st.info(f"**Strategy:** {decision['strategy']}\n**Confidence:** {decision['confidence']*100:.1f}%")
+                        elif decision['decision'] == 'WAIT':
+                            st.warning(f"⏳ {decision['reason']}")
+                        else:
+                            st.error(f"🛑 {decision['reason']}")
+                else:
+                    st.error("Failed to fetch NIFTY data")
+    
+    with col3:
+        if st.button("💼 Monitor Positions", use_container_width=True):
+            with st.spinner("Monitoring positions..."):
+                actions = ai_engine.monitor_positions()
+                if actions:
+                    for action in actions:
+                        if action['action'] == 'CLOSE':
+                            if 'TARGET' in action['reason']:
+                                st.success(f"✅ Position #{action['trade_id']} closed at target: {action['pnl_pct']:.2f}%")
+                            else:
+                                st.warning(f"⚠️ Position #{action['trade_id']} stopped: {action['pnl_pct']:.2f}%")
+                        elif action['action'] == 'TRAIL_STOP':
+                            st.info(f"📊 Position #{action['trade_id']} stop trailed to {action['new_stop']}%")
+                else:
+                    st.info("All positions within limits")
+                st.rerun()
+    
+    with col4:
+        if st.button("🔄 Reset AI", use_container_width=True):
+            if st.session_state.get('confirm_ai_reset', False):
+                # Reset AI engine
+                from ai_trading_engine import AITradingEngine
+                st.session_state.ai_engine = AITradingEngine(
+                    capital=ai_capital,
+                    max_positions=max_positions_ai
+                )
+                st.session_state.confirm_ai_reset = False
+                st.success("✅ AI Engine Reset!")
+                st.rerun()
+            else:
+                st.session_state.confirm_ai_reset = True
+                st.warning("⚠️ Click again to confirm reset")
+    
+    # Show last AI decision if available
+    if 'last_ai_decision' in st.session_state and st.session_state.last_ai_decision:
+        decision = st.session_state.last_ai_decision
+        
+        with st.expander("🧠 Last AI Analysis", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Market Conditions:**")
+                conditions = decision.get('market_conditions', {})
+                st.write(f"- **Trend:** {conditions.get('trend', 'N/A')}")
+                st.write(f"- **Volatility:** {conditions.get('volatility', 'N/A')}")
+                st.write(f"- **Strength:** {conditions.get('strength', 0)*100:.1f}%")
+                st.write(f"- **Confidence:** {conditions.get('confidence', 0)*100:.1f}%")
+                
+                indicators = conditions.get('indicators', {})
+                if indicators:
+                    st.write(f"- **RSI:** {indicators.get('rsi', 0):.2f}")
+                    st.write(f"- **Current Price:** ₹{indicators.get('current_price', 0):.2f}")
+            
+            with col2:
+                if decision['decision'] == 'TRADE':
+                    st.write("**Trade Recommendation:**")
+                    st.write(f"- **Strategy:** {decision.get('strategy', 'N/A')}")
+                    st.write(f"- **Option Type:** {decision.get('option_type', 'N/A')}")
+                    st.write(f"- **Strike:** {decision.get('strike_selection', 'N/A')}")
+                    st.write(f"- **Quantity:** {decision.get('quantity', 0)} lots")
+                    st.write(f"- **Stop Loss:** {decision.get('stop_loss_pct', 0)}%")
+                    st.write(f"- **Target:** {decision.get('target_pct', 0)}%")
+                    
+                    if st.button("⚡ Execute This Trade", type="primary"):
+                        result = ai_engine.execute_trade(decision)
+                        if result['status'] == 'SUCCESS':
+                            st.success(f"✅ {result['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {result['message']}")
+                else:
+                    st.write(f"**Decision:** {decision['decision']}")
+                    st.write(f"**Reason:** {decision.get('reason', 'N/A')}")
+    
+    # AI Open Positions
+    if ai_engine.positions:
+        st.subheader("💼 AI Open Positions")
+        
+        positions_data = []
+        for pos in ai_engine.positions:
+            positions_data.append({
+                'ID': pos['id'],
+                'Time': pos['timestamp'].strftime('%H:%M:%S'),
+                'Strategy': pos['strategy'],
+                'Type': pos['option_type'],
+                'Qty': pos['quantity'],
+                'Entry': f"₹{pos['entry_premium']:.2f}",
+                'Current': f"₹{pos.get('current_premium', pos['entry_premium']):.2f}",
+                'P&L': f"₹{pos.get('pnl', 0):.2f}",
+                'P&L%': f"{pos.get('pnl_pct', 0):.2f}%",
+                'Status': pos['status']
+            })
+        
+        df_positions = pd.DataFrame(positions_data)
+        st.dataframe(df_positions, use_container_width=True)
+    
+    # AI Performance Summary
+    if ai_engine.trade_history:
+        with st.expander("📊 AI Performance Summary"):
+            col1, col2, col3, col4 = st.columns(4)
+            
+            total_trades = len(ai_engine.trade_history)
+            winning_trades = sum(1 for t in ai_engine.trade_history if t.get('pnl', 0) > 0)
+            losing_trades = sum(1 for t in ai_engine.trade_history if t.get('pnl', 0) < 0)
+            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+            
+            with col1:
+                st.metric("Total Trades", total_trades)
+            with col2:
+                st.metric("Winning Trades", winning_trades, f"+{win_rate:.1f}%")
+            with col3:
+                st.metric("Losing Trades", losing_trades)
+            with col4:
+                avg_pnl = sum(t.get('pnl', 0) for t in ai_engine.trade_history) / total_trades if total_trades > 0 else 0
+                st.metric("Avg P&L/Trade", f"₹{avg_pnl:.2f}")
+            
+            # Strategy performance
+            if ai_status['winning_strategies'] or ai_status['losing_strategies']:
+                st.write("**Strategy Performance:**")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("✅ **Winning Strategies:**")
+                    for strategy, count in sorted(ai_status['winning_strategies'].items(), key=lambda x: x[1], reverse=True):
+                        st.write(f"- {strategy}: {count} wins")
+                
+                with col2:
+                    st.write("❌ **Losing Strategies:**")
+                    for strategy, count in sorted(ai_status['losing_strategies'].items(), key=lambda x: x[1], reverse=True):
+                        st.write(f"- {strategy}: {count} losses")
+    
+    # Auto-Run AI Trading
+    if ai_status['is_active']:
+        st.info("""
+        **🤖 AI Auto-Trading is ACTIVE**
+        
+        The AI engine will:
+        - ✅ Analyze market conditions every 60 seconds
+        - ✅ Execute trades when confidence > {min_confidence}%
+        - ✅ Monitor positions every 30 seconds
+        - ✅ Apply stop-loss and targets automatically
+        - ✅ Learn from every trade
+        
+        ⚠️ **Safety Features Active:**
+        - Max {max_positions_ai} positions at once
+        - Max {max_trades_day} trades per day
+        - Max {max_loss_pct}% daily loss limit
+        - Max {max_trade_loss_pct}% loss per trade
+        """.format(
+            min_confidence=min_confidence,
+            max_positions_ai=max_positions_ai,
+            max_trades_day=max_trades_day,
+            max_loss_pct=max_loss_pct,
+            max_trade_loss_pct=max_trade_loss_pct
+        ))
+        
+        # Auto-run loop (non-blocking with rerun)
+        if st.button("▶️ Run AI Cycle Now", type="primary", use_container_width=True):
+            with st.spinner("🤖 AI analyzing and executing..."):
+                # Fetch NIFTY data
+                from datetime import datetime, timedelta
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=90)
+                
+                nifty_data = st.session_state.fetcher.get_historical_data(
+                    "^NSEI",
+                    start_date.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d')
+                )
+                
+                if not nifty_data.empty:
+                    # Analyze and decide
+                    decision = ai_engine.analyze_and_decide(nifty_data, 'NIFTY 50')
+                    
+                    if decision and decision['decision'] == 'TRADE':
+                        if decision['confidence'] >= (min_confidence / 100):
+                            # Execute trade
+                            result = ai_engine.execute_trade(decision)
+                            if result['status'] == 'SUCCESS':
+                                st.success(f"✅ Trade Executed: {result['message']}")
+                            else:
+                                st.warning(f"⚠️ {result['message']}")
+                        else:
+                            st.info(f"⏳ Confidence {decision['confidence']*100:.1f}% below threshold {min_confidence}%")
+                    
+                    # Monitor positions
+                    actions = ai_engine.monitor_positions()
+                    if actions:
+                        for action in actions:
+                            if action['action'] == 'CLOSE':
+                                st.success(f"Position #{action['trade_id']} closed: {action['reason']}")
+                
+                st.rerun()
+    
+    st.markdown("---")
+    
     # Live NIFTY Trading Status
     st.subheader("📊 NIFTY Trading Status")
     
